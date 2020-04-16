@@ -1,4 +1,3 @@
-// copied from react-swipeable-viewes to listen document event instead of root div
 import React from 'react';
 import PropTypes from 'prop-types';
 import warning from 'warning';
@@ -119,10 +118,6 @@ function adaptMouse(event) {
   return event;
 }
 
-/**
- * @param element
- * @param rootNode
- */
 export function getDomTreeShapes(element, rootNode) {
   const domTreeShapes = [];
 
@@ -132,16 +127,6 @@ export function getDomTreeShapes(element, rootNode) {
       break;
     }
 
-    // const style = window.getComputedStyle(element);
-
-    // if (
-    //   // Ignore the scroll children if the element is absolute positioned.
-    //   style.getPropertyValue('position') === 'absolute' ||
-    //   // Ignore the scroll children if the element has an overflowX hidden
-    //   style.getPropertyValue('overflow-x') === 'hidden'
-    // ) {
-    //   domTreeShapes = [];
-    // } else
     if (
       (element.clientWidth > 0 && element.scrollWidth > element.clientWidth) ||
       (element.clientHeight > 0 && element.scrollHeight > element.clientHeight)
@@ -170,9 +155,6 @@ export function getDomTreeShapes(element, rootNode) {
 // That's why we use a singleton here.
 let nodeWhoClaimedTheScroll = null;
 
-/**
- * @param params
- */
 export function findNativeHandler(params) {
   const { domTreeShapes, pageX, startX, axis } = params;
 
