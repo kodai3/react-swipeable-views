@@ -271,7 +271,7 @@ class SwipeableViews extends React.Component {
 
     // Block the thread to handle that event.
     this.touchMoveListener = addEventListener(
-      this.rootNode,
+      document,
       'touchmove',
       event => {
         // Handling touch events is disabled.
