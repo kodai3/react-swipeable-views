@@ -1,12 +1,8 @@
+// copied from react-swipeable-viewes to listen document event instead of root div
 import React from 'react';
 import PropTypes from 'prop-types';
 import warning from 'warning';
-import {
-  constant,
-  checkIndexBounds,
-  computeIndex,
-  getDisplaySameSlide,
-} from 'react-swipeable-views-core';
+import { constant, checkIndexBounds, computeIndex, getDisplaySameSlide } from 'react-swipeable-views-core';
 
 function addEventListener(node, event, handler, options) {
   node.addEventListener(event, handler, options);
@@ -123,25 +119,30 @@ function adaptMouse(event) {
   return event;
 }
 
+/**
+ * @param element
+ * @param rootNode
+ */
 export function getDomTreeShapes(element, rootNode) {
-  let domTreeShapes = [];
+  const domTreeShapes = [];
 
   while (element && element !== rootNode) {
     // We reach a Swipeable View, no need to look higher in the dom tree.
-    if (element.hasAttribute('data-swipeable')) {
+    if (element.hasAttribute && element.hasAttribute('data-swipeable')) {
       break;
     }
 
-    const style = window.getComputedStyle(element);
+    // const style = window.getComputedStyle(element);
 
+    // if (
+    //   // Ignore the scroll children if the element is absolute positioned.
+    //   style.getPropertyValue('position') === 'absolute' ||
+    //   // Ignore the scroll children if the element has an overflowX hidden
+    //   style.getPropertyValue('overflow-x') === 'hidden'
+    // ) {
+    //   domTreeShapes = [];
+    // } else
     if (
-      // Ignore the scroll children if the element is absolute positioned.
-      style.getPropertyValue('position') === 'absolute' ||
-      // Ignore the scroll children if the element has an overflowX hidden
-      style.getPropertyValue('overflow-x') === 'hidden'
-    ) {
-      domTreeShapes = [];
-    } else if (
       (element.clientWidth > 0 && element.scrollWidth > element.clientWidth) ||
       (element.clientHeight > 0 && element.scrollHeight > element.clientHeight)
     ) {
@@ -169,6 +170,9 @@ export function getDomTreeShapes(element, rootNode) {
 // That's why we use a singleton here.
 let nodeWhoClaimedTheScroll = null;
 
+/**
+ * @param params
+ */
 export function findNativeHandler(params) {
   const { domTreeShapes, pageX, startX, axis } = params;
 
@@ -183,8 +187,7 @@ export function findNativeHandler(params) {
 
     const areNotAtStart = scrollPosition > 0;
     const areNotAtEnd =
-      scrollPosition + shape[axisProperties.clientLength[axis]] <
-      shape[axisProperties.scrollLength[axis]];
+      scrollPosition + shape[axisProperties.clientLength[axis]] < shape[axisProperties.scrollLength[axis]];
 
     if ((goingForward && areNotAtEnd) || (!goingForward && areNotAtStart)) {
       nodeWhoClaimedTheScroll = shape.element;
@@ -221,6 +224,9 @@ class SwipeableViews extends React.Component {
   transitionListener = null;
 
   touchMoveListener = null;
+
+  touchStartListener = null;
+  touchEndListener = null;
 
   activeSlide = null;
 
@@ -265,7 +271,6 @@ class SwipeableViews extends React.Component {
       if (event.target !== this.containerNode) {
         return;
       }
-
       this.handleTransitionEnd();
     });
 
@@ -282,7 +287,29 @@ class SwipeableViews extends React.Component {
       },
       {
         passive: false,
+      }
+    );
+
+    // Block the thread to handle that event.
+    this.touchStartListener = addEventListener(
+      document,
+      'touchstart',
+      event => {
+        this.handleTouchStart(event);
       },
+      {
+        passive: false,
+      }
+    );
+    this.touchEndListener = addEventListener(
+      document,
+      'touchend',
+      event => {
+        this.handleTouchEnd(event);
+      },
+      {
+        passive: false,
+      }
     );
 
     if (!this.props.disableLazyLoading) {
@@ -321,6 +348,9 @@ class SwipeableViews extends React.Component {
   componentWillUnmount() {
     this.transitionListener.remove();
     this.touchMoveListener.remove();
+    this.touchStartListener.remove();
+    this.touchEndListener.remove();
+
     clearTimeout(this.firstRenderTimeout);
   }
 
@@ -367,8 +397,7 @@ class SwipeableViews extends React.Component {
 
     const computedStyle = window.getComputedStyle(this.containerNode);
     const transform =
-      computedStyle.getPropertyValue('-webkit-transform') ||
-      computedStyle.getPropertyValue('transform');
+      computedStyle.getPropertyValue('-webkit-transform') || computedStyle.getPropertyValue('transform');
 
     if (transform && transform !== 'none') {
       const transformValues = transform
@@ -382,14 +411,12 @@ class SwipeableViews extends React.Component {
           pageX: parseInt(transformValues[4], 10),
           pageY: parseInt(transformValues[5], 10),
         },
-        axis,
+        axis
       );
 
       this.startIndex =
         -tranformNormalized.pageX /
-          (this.viewLength -
-            parseInt(rootStyle.paddingLeft, 10) -
-            parseInt(rootStyle.paddingRight, 10)) || 0;
+          (this.viewLength - parseInt(rootStyle.paddingLeft, 10) - parseInt(rootStyle.paddingRight, 10)) || 0;
     }
   };
 
@@ -421,8 +448,7 @@ class SwipeableViews extends React.Component {
         !resistance &&
         (axis === 'y' || axis === 'y-reverse') &&
         ((this.indexCurrent === 0 && this.startX < touch.pageX) ||
-          (this.indexCurrent === React.Children.count(this.props.children) - 1 &&
-            this.startX > touch.pageX))
+          (this.indexCurrent === React.Children.count(this.props.children) - 1 && this.startX > touch.pageX))
       ) {
         this.isSwiping = false;
         return;
@@ -498,7 +524,7 @@ class SwipeableViews extends React.Component {
           displaySameSlide: false,
           isDragging: true,
         },
-        callback,
+        callback
       );
     }
 
@@ -569,7 +595,7 @@ class SwipeableViews extends React.Component {
         if (indexCurrent === indexLatest) {
           this.handleTransitionEnd();
         }
-      },
+      }
     );
   };
 
@@ -656,11 +682,7 @@ class SwipeableViews extends React.Component {
   updateHeight = () => {
     if (this.activeSlide !== null) {
       const child = this.activeSlide.children[0];
-      if (
-        child !== undefined &&
-        child.offsetHeight !== undefined &&
-        this.state.heightLatest !== child.offsetHeight
-      ) {
+      if (child !== undefined && child.offsetHeight !== undefined && this.state.heightLatest !== child.offsetHeight) {
         this.setState({
           heightLatest: child.offsetHeight,
         });
@@ -711,13 +733,7 @@ class SwipeableViews extends React.Component {
       ...other
     } = this.props;
 
-    const {
-      displaySameSlide,
-      heightLatest,
-      indexLatest,
-      isDragging,
-      renderOnlyActive,
-    } = this.state;
+    const { displaySameSlide, heightLatest, indexLatest, isDragging, renderOnlyActive } = this.state;
     const touchEvents = !disabled
       ? {
           onTouchStart: this.handleTouchStart,
@@ -740,7 +756,7 @@ class SwipeableViews extends React.Component {
       `react-swipeable-view: You are setting animateHeight to true but you are
 also providing a custom height.
 The custom height has a higher priority than the animateHeight property.
-So animateHeight is most likely having no effect at all.`,
+So animateHeight is most likely having no effect at all.`
     );
 
     const slideStyle = Object.assign({}, styles.slide, slideStyleProp);
@@ -803,7 +819,7 @@ So animateHeight is most likely having no effect at all.`,
             warning(
               React.isValidElement(child),
               `react-swipeable-view: one of the children provided is invalid: ${child}.
-We are expecting a valid React Element`,
+We are expecting a valid React Element`
             );
 
             let ref;
@@ -819,13 +835,7 @@ We are expecting a valid React Element`,
             }
 
             return (
-              <div
-                ref={ref}
-                style={slideStyle}
-                className={slideClassName}
-                aria-hidden={hidden}
-                data-swipeable="true"
-              >
+              <div ref={ref} style={slideStyle} className={slideClassName} aria-hidden={hidden} data-swipeable="true">
                 {child}
               </div>
             );
